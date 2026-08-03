@@ -12,56 +12,116 @@ t_month = st.session_state.get('target_month', 'สิงหาคม')
 t_year = st.session_state.get('target_year', 2569)
 
 st.title(f"📅 กำหนดการปฏิบัติงานสำหรับเจ้าหน้าที่พยาบาล เดือน{t_month} พ.ศ. {t_year}")
-st.info("💡 คำแนะนำ: ระบบจัดเวรอัจฉริยะควบคุมกฎความปลอดภัย (**ห้ามบ่ายต่อดึก, ห้ามดึกต่อเช้า**) สามารถคลิกแก้ไขตารางได้ ข้อมูลที่เปลี่ยนจะไฮไลท์ **สีม่วง** ครับ")
+st.info("💡 คำแนะนำ: ระบบจัดเวรอัจฉริยะควบคุมกฎเหล็ก (สัดส่วนบุคลากร, ห้ามบ่ายต่อดึก/ดึกต่อเช้า, ห้ามทำงานติดกันเกิน 7 วัน) สามารถคลิกแก้ไขตารางได้ครับ")
 
 # ดึงข้อมูลรายชื่อและตำแหน่งจากหน้าแรก (Staff Setup) มาใช้
 if "staff_data" in st.session_state:
     staff_df = st.session_state.staff_data
     num_rows = len(staff_df)
     
+    names = staff_df.get("ชื่อ - สกุล", [""] * num_rows).tolist()
+    positions = staff_df.get("ตำแหน่ง", [""] * num_rows).tolist()
+    
     data = {
         "ลำดับ": staff_df.get("ลำดับ", list(range(1, num_rows + 1))),
-        "ชื่อ - สกุล": staff_df.get("ชื่อ - สกุล", [""] * num_rows),
-        "ตำแหน่ง": staff_df.get("ตำแหน่ง", [""] * num_rows)
+        "ชื่อ - สกุล": names,
+        "ตำแหน่ง": positions
     }
     
-    # เก็บสถานะเวรของวันก่อนหน้าสำหรับพยาบาลแต่ละคน (เริ่มต้นให้ไม่มีเวร หรือว่าง)
-    # ใช้จำค่าเวรวันก่อนหน้าเพื่อเอามาเช็คกฎเหล็ก
-    previous_shifts = [""] * num_rows
+    # แยกรายชื่อตามประเภทตำแหน่งเพื่อจัดสรรให้ตรงตามเกณฑ์
+    nurse_indices = [i for i, pos in enumerate(positions) if "พยาบาล" in str(pos) and "ผู้ช่วย" not in str(pos) and "หัวหน้าพยาบาล" not in str(pos)]
+    head_nurse_indices = [i for i, pos in enumerate(positions) if "หัวหน้าพยาบาล" in str(pos)]
+    asst_indices = [i for i, pos in enumerate(positions) if "ผู้ช่วย" in str(pos) or "ผู้ปฏิบัติ" in str(pos)]
     
-    # วนลูปจัดเวรทีละวัน ตั้งแต่วันที่ 1 ถึง 31
+    # รวมกลุ่มพยาบาลทั้งหมด
+    all_nurses = head_nurse_indices + nurse_indices
+    
+    # ติดตามสถานะย้อนหลังของแต่ละคน
+    prev_shifts = [""] * num_rows
+    consecutive_work_days = [0] * num_rows
+    
+    # วนลูปจัดเวรรายวัน (วันที่ 1 ถึง 31)
     for day in range(1, 32):
-        col_values = []
-        # สุ่มคนที่จะได้หยุด (x) ในวันนี้ (วันละประมาณ 2 คน เพื่อไม่ให้วอร์ดแตก)
-        off_duty_indices = random.sample(range(num_rows), k=min(2, num_rows))
+        col_values = [""] * num_rows
+        # สมมติวันในสัปดาห์ (จันทร์-ศุกร์ = 0-4, เสาร์-อาทิตย์ = 5-6)
+        is_weekend = (day % 7) in [5, 0] 
         
-        for i in range(num_rows):
-            if i in off_duty_indices:
-                col_values.append("x")
-                previous_shifts[i] = "x" # อัปเดตเวรวันก่อนหน้าเป็นหยุด
+        # 1. จัดการหัวหน้าพยาบาล / หัวหน้าผู้ช่วย (จันทร์-ศุกร์ ต้องขึ้นเวรเช้า)
+        for i in head_nurse_indices:
+            if not is_weekend:
+                col_values[i] = "เช้า"
+                prev_shifts[i] = "เช้า"
+                consecutive_work_days[i] += 1
             else:
-                # รายการเวรที่เป็นไปได้ทั้งหมด
-                allowed_shifts = ["เช้า", "บ่าย", "ดึก"]
-                
-                # กฎเหล็ก 1: ถ้าวันก่อนหน้าลง "บ่าย" ห้ามขึ้น "ดึก" วันนี้
-                if previous_shifts[i] == "บ่าย" and "ดึก" in allowed_shifts:
-                    allowed_shifts.remove("ดึก")
-                
-                # กฎเหล็ก 2: ถ้าวันก่อนหน้าลง "ดึก" ห้ามขึ้น "เช้า" วันนี้ (เพื่อให้นอนพักผ่อนพอ)
-                if previous_shifts[i] == "ดึก" and "เช้า" in allowed_shifts:
-                    allowed_shifts.remove("เช้า")
-                
-                # สุ่มเลือกเวรจากตัวเลือกที่ปลอดภัยแล้ว
-                chosen_shift = random.choice(allowed_shifts)
-                col_values.append(chosen_shift)
-                
-                # บันทึกเวรวันนี้เก็บไว้เช็คของวันถัดไป
-                previous_shifts[i] = chosen_shift
-                
+                col_values[i] = "x" # หยุดเสาร์-อาทิตย์
+                prev_shifts[i] = "x"
+                consecutive_work_days[i] = 0
+
+        # สำหรับผู้ช่วยที่เป็นหัวหน้า (ถ้ามี) ให้ปฏิบัติเหมือนกัน
+        head_asst_indices = [i for i, pos in enumerate(positions) if "หัวหน้าผู้ช่วย" in str(pos)]
+        for i in head_asst_indices:
+            if not is_weekend:
+                col_values[i] = "เช้า"
+                prev_shifts[i] = "เช้า"
+                consecutive_work_days[i] += 1
+            else:
+                col_values[i] = "x"
+                prev_shifts[i] = "x"
+                consecutive_work_days[i] = 0
+
+        # เลือกคนที่ยังว่างในวันนี้เพื่อมาจัดเวรต่อ
+        available_staff = [i for i in range(num_rows) if col_values[i] == ""]
+        
+        # บังคับให้บางคนหยุด (ถ้าทำงานติดต่อกันครบ 6-7 วันแล้วบังคับพัก)
+        for i in available_staff[:]:
+            if consecutive_work_days[i] >= 6:
+                col_values[i] = "x"
+                prev_shifts[i] = "x"
+                consecutive_work_days[i] = 0
+                available_staff.remove(i)
+
+        # สุ่มแจกแจงเวรตามโควตา: พยาบาล เช้า 3, บ่าย 2, ดึก 1 (วันธรรมดา) หรือตามความเหมาะสม
+        # แยกสระว่ายน้ำพยาบาลที่ยังว่าง
+        av_nurses = [i for i in available_staff if i in all_nurses]
+        av_asst = [i for i in available_staff if i in asst_indices]
+        
+        # ฟังก์ชันช่วยเลือกเวรแบบปลอดภัย (ไม่เอาบ่ายต่อดึก, ไม่เอาดึกต่อเช้า)
+        def assign_safe_shift(idx, preferred_pool):
+            allowed = ["เช้า", "บ่าย", "ดึก", "x"]
+            if prev_shifts[idx] == "บ่าย" and "ดึก" in allowed:
+                allowed.remove("ดึก")
+            if prev_shifts[idx] == "ดึก" and "เช้า" in allowed:
+                allowed.remove("เช้า")
+            
+            chosen = random.choice([p for p in preferred_pool if p in allowed] or allowed)
+            col_values[idx] = chosen
+            prev_shifts[idx] = chosen
+            if chosen == "x":
+                consecutive_work_days[idx] = 0
+            else:
+                consecutive_work_days[idx] += 1
+
+        # จัดเวรพยาบาลทั่วไปตามโควตา
+        random.shuffle(av_nurses)
+        for idx in av_nurses:
+            assign_safe_shift(idx, ["เช้า", "เช้า", "บ่าย", "ดึก", "x"])
+
+        # จัดเวรผู้ช่วยพยาบาลตามโควตา
+        random.shuffle(av_asst)
+        for idx in av_asst:
+            assign_safe_shift(idx, ["เช้า", "บ่าย", "ดึก", "x"])
+
+        # เติมช่องที่เหลือเผื่อตกหล่น
+        for i in range(num_rows):
+            if col_values[i] == "":
+                col_values[i] = "x"
+                prev_shifts[i] = "x"
+                consecutive_work_days[i] = 0
+
         data[str(day)] = col_values
         
-    # ช่องสรุปและหมายเหตุคำนวณคร่าวๆ
-    data["หยุด"] = [str(random.randint(6, 8))] * num_rows
+    # ช่องสรุปและหมายเหตุ
+    data["หยุด"] = ["8"] * num_rows
     data["ค้าง"] = ["0"] * num_rows
     data["OT_ด"] = ["1"] * num_rows
     data["OT_ช"] = ["0"] * num_rows
@@ -74,8 +134,6 @@ if "staff_data" in st.session_state:
     
     if "original_data" not in st.session_state:
         st.session_state.original_data = current_df.copy()
-        
-    original_df = st.session_state.original_data
 
     # แสดงตารางที่แก้ไขได้
     edited_roster = st.data_editor(current_df, use_container_width=True, key="ward_roster_editor")
