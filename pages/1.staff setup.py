@@ -47,10 +47,16 @@ edited_staff = st.data_editor(st.session_state.staff_data, num_rows="dynamic", u
 st.session_state.staff_data = edited_staff
 
 st.markdown("---")
-st.subheader("⚙️ เงื่อนไขการประชุมและกฎเหล็ก")
+st.subheader("⚙️ เงื่อนไขการประชุมและเกณฑ์")
 st.checkbox("เชื่อมโยงตารางประชุมคณะกรรมการหอผู้ป่วย (เช่น พุธที่ 1, พุธที่ 2 ของเดือน)", value=True)
-st.checkbox("ล็อกหัวหน้าหอผู้ป่วยและหัวหน้า PN ขึ้นเวรเช้า จันทร์-ศุกร์", value=True)
+st.checkbox("ล็อกหัวหน้าหอผู้ป่วยและหัวหน้าผู้ช่วยขึ้นเวรเช้า จันทร์-ศุกร์", value=True)
 st.checkbox("จำกัดการทำงานติดต่อกันไม่เกิน 7 วัน", value=True)
+st.checkbox("พยาบาลเวรเช้า(รวมหัวหน้าพยาบาล จ-ศ 3 คน เวรบ่าย 2 คน เวรดึก 1 คน ส-อ พยาบาล 1 คน", value=True)
+st.checkbox("ผู้ช่วยพยาบาลเวรเช้า(รวมหัวหน้าผู้ช่วยพยาบาล จ-ศ 2 คน เวรบ่าย 1 คน เวรดึก 1 คน ส-อ ผู้ช่วยพยาบาล 1 คน", value=True)
+
+
+
+
 
 st.markdown("---")
 if st.button("🚀 ยืนยันข้อมูลและไปหน้าจัดเวรอัจฉริยะ", type="primary", use_container_width=True):
