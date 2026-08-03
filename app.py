@@ -13,7 +13,7 @@ if not st.session_state.logged_in:
     password = st.text_input("รหัสผ่านระบบ (Password)", type="password")
     
     if st.button("เข้าสู่ระบบ 🚀", use_container_width=True):
-        if password == "1234": # เปลี่ยนรหัสผ่านได้ตามต้องการ
+        if password == "Very59": # เปลี่ยนรหัสผ่านได้ตามต้องการ
             st.session_state.logged_in = True
             st.success("เข้าสู่ระบบสำเร็จ! กำลังพาท่านไปหน้าจัดการเวร...")
             st.rerun()
