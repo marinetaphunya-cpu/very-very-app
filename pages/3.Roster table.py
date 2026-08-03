@@ -12,7 +12,7 @@ t_month = st.session_state.get('target_month', 'สิงหาคม')
 t_year = st.session_state.get('target_year', 2569)
 
 st.title(f"📅 กำหนดการปฏิบัติงานสำหรับเจ้าหน้าที่พยาบาล เดือน{t_month} พ.ศ. {t_year}")
-st.info("💡 คำแนะนำ: ระบบจัดเวรอัจฉริยะล็อกโควตาตรงตามเงื่อนไขเป๊ะๆ (พยาบาลเช้า 3, บ่าย 2, ดึก 1 | ผู้ช่วยเช้า 2, บ่าย 1, ดึก 1) พร้อมคุมกฎความปลอดภัยครับ")
+st.info("💡 คำแนะนำ: ระบบจัดเวรอัจฉริยะล็อกโควตาตรงตามเงื่อนไข")
 
 if "staff_data" in st.session_state:
     staff_df = st.session_state.staff_data
