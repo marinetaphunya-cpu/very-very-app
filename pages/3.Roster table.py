@@ -12,7 +12,7 @@ t_month = st.session_state.get('target_month', 'สิงหาคม')
 t_year = st.session_state.get('target_year', 2569)
 
 st.title(f"📅 กำหนดการปฏิบัติงานสำหรับเจ้าหน้าที่พยาบาล เดือน{t_month} พ.ศ. {t_year}")
-st.info("💡 คำแนะนำ: ระบบจำลองการจัดเวรแบบสลับสับเปลี่ยนกำลังคน ไม่ให้หยุดตรงกัน สามารถคลิกแก้ไขตารางได้ ข้อมูลที่เปลี่ยนจะไฮไลท์ **สีม่วง** ครับ")
+st.info("💡 คำแนะนำ: ระบบจัดเวรอัจฉริยะควบคุมกฎความปลอดภัย (**ห้ามบ่ายต่อดึก, ห้ามดึกต่อเช้า**) สามารถคลิกแก้ไขตารางได้ ข้อมูลที่เปลี่ยนจะไฮไลท์ **สีม่วง** ครับ")
 
 # ดึงข้อมูลรายชื่อและตำแหน่งจากหน้าแรก (Staff Setup) มาใช้
 if "staff_data" in st.session_state:
@@ -25,25 +25,42 @@ if "staff_data" in st.session_state:
         "ตำแหน่ง": staff_df.get("ตำแหน่ง", [""] * num_rows)
     }
     
-    # อัลกอริทึมจำลองการจัดเวรที่ไม่ให้ทุกคนหยุดพร้อมกัน และสลับเวร เช้า บ่าย ดึก อย่างสมดุล
-    shift_pool = ["เช้า", "บ่าย", "ดึก", "x", ""]
+    # เก็บสถานะเวรของวันก่อนหน้าสำหรับพยาบาลแต่ละคน (เริ่มต้นให้ไม่มีเวร หรือว่าง)
+    # ใช้จำค่าเวรวันก่อนหน้าเพื่อเอามาเช็คกฎเหล็ก
+    previous_shifts = [""] * num_rows
     
+    # วนลูปจัดเวรทีละวัน ตั้งแต่วันที่ 1 ถึง 31
     for day in range(1, 32):
         col_values = []
-        # สุ่มเลือกคนที่จะได้หยุดในแต่ละวัน (ให้หยุดแค่วันละ 1-2 คนพอ ไม่ให้หยุดหมด)
+        # สุ่มคนที่จะได้หยุด (x) ในวันนี้ (วันละประมาณ 2 คน เพื่อไม่ให้วอร์ดแตก)
         off_duty_indices = random.sample(range(num_rows), k=min(2, num_rows))
         
         for i in range(num_rows):
             if i in off_duty_indices:
-                col_values.append("x") # คนที่ได้รับสิทธิ์หยุดวันนี้
+                col_values.append("x")
+                previous_shifts[i] = "x" # อัปเดตเวรวันก่อนหน้าเป็นหยุด
             else:
-                # สลับเวร เช้า บ่าย ดึก ไม่ให้ซ้ำกันสะเปะสะปะ
-                assigned_shift = random.choice(["เช้า", "บ่าย", "ดึก"])
-                col_values.append(assigned_shift)
+                # รายการเวรที่เป็นไปได้ทั้งหมด
+                allowed_shifts = ["เช้า", "บ่าย", "ดึก"]
+                
+                # กฎเหล็ก 1: ถ้าวันก่อนหน้าลง "บ่าย" ห้ามขึ้น "ดึก" วันนี้
+                if previous_shifts[i] == "บ่าย" and "ดึก" in allowed_shifts:
+                    allowed_shifts.remove("ดึก")
+                
+                # กฎเหล็ก 2: ถ้าวันก่อนหน้าลง "ดึก" ห้ามขึ้น "เช้า" วันนี้ (เพื่อให้นอนพักผ่อนพอ)
+                if previous_shifts[i] == "ดึก" and "เช้า" in allowed_shifts:
+                    allowed_shifts.remove("เช้า")
+                
+                # สุ่มเลือกเวรจากตัวเลือกที่ปลอดภัยแล้ว
+                chosen_shift = random.choice(allowed_shifts)
+                col_values.append(chosen_shift)
+                
+                # บันทึกเวรวันนี้เก็บไว้เช็คของวันถัดไป
+                previous_shifts[i] = chosen_shift
                 
         data[str(day)] = col_values
         
-    # ช่องสรุปและหมายเหตุ
+    # ช่องสรุปและหมายเหตุคำนวณคร่าวๆ
     data["หยุด"] = [str(random.randint(6, 8))] * num_rows
     data["ค้าง"] = ["0"] * num_rows
     data["OT_ด"] = ["1"] * num_rows
