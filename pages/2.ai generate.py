@@ -32,5 +32,5 @@ if "roster_data" not in st.session_state:
 
 st.success("🎉 ตารางเวรพร้อมแล้ว!")
 if st.button("👉 ไปดูตารางเวรประจำเดือน", type="primary", use_container_width=True):
-    st.switch_page("pages/3_📅_Roster_Table.py")
+    st.switch_page("pages/3.Roster table.py")
 
