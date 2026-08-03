@@ -45,5 +45,5 @@ st.checkbox("สิทธิ์วันหยุด Vacation เดือนล
 
 st.markdown("---")
 if st.button("🚀 ยืนยันข้อมูลและไปหน้าจัดเวรอัจฉริยะ (AI)", type="primary", use_container_width=True):
-    st.switch_page("pages/2_⏳_AI_Generating.py")
+    st.switch_page("pages/2.ai generate.py")
 
