@@ -53,4 +53,4 @@ st.success("🎉 ตารางเวรพร้อมแล้ว!")
 
 # แก้ชื่อลิงก์หน้าปลายทางให้ตรงกับชื่อไฟล์จริง 3_📅_Roster_Table.py อย่างถูกต้อง
 if st.button("👉 ไปดูตารางเวรประจำเดือน", type="primary", use_container_width=True):
-    st.switch_page("pages/3_📅_Roster_Table.py")
+    st.switch_page("pages/3.Roster table.py")
