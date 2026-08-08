@@ -1,21 +1,31 @@
 import streamlit as st
 import pandas as pd
 
+# ตั้งค่าหน้ากระดาษ
 st.set_page_config(page_title="Staff & Rules Setup", page_icon="📋", layout="wide")
 
+# --- CSS สำหรับซ่อนแถบเมนู Sidebar ด้านข้างของ Streamlit ---
+hide_streamlit_style = """
+    <style>
+    [data-testid="stSidebarNav"] {display: none;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# ตรวจสอบการล็อกอิน
 if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("⚠️ กรุณาล็อกอินเข้าสู่ระบบก่อนใช้งานหน้านี้")
     st.stop()
 
 st.title("📋 จัดการรายชื่อบุคลากรและกำหนดเดือนตารางเวร")
-st.write("เลือกเดือน/ปีที่ต้องการจัดตาราง พร้อมกรอกรายชื่อพยาบาล RN, PN และตำแหน่งในวอร์ด")
+st.write("เลือกเดือน/ปีที่ต้องการจัดตาราง พร้อมกำหนดรายชื่อ RN, PN และกฎระเบียบข้อบังคับต่างๆ")
 
 # เลือกเดือนและปี
 col_m1, col_m2 = st.columns(2)
 with col_m1:
     months_list = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", 
                    "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]
-    selected_month = st.selectbox("เลือกเดือนสำหรับจัดตารางเวร", months_list, index=7) # ค่าเริ่มต้น สิงหาคม
+    selected_month = st.selectbox("เลือกเดือนสำหรับจัดตารางเวร", months_list, index=7)
 with col_m2:
     selected_year = st.selectbox("เลือกปี พ.ศ.", [2569, 2570, 2571], index=0)
 
@@ -25,7 +35,7 @@ st.session_state.target_year = selected_year
 st.markdown("---")
 st.subheader("👥 รายชื่อบุคลากรและตำแหน่งในวอร์ด")
 
-# ปรับคอลัมน์ให้ตรงตามฟอร์มจริง (ลำดับ, ชื่อ - สกุล, ตำแหน่ง)
+# ตารางรายชื่อบุคลากร
 if "staff_data" not in st.session_state:
     st.session_state.staff_data = pd.DataFrame([
         {"ลำดับ": 1, "ชื่อ - สกุล": "นางสาวA", "ตำแหน่ง": "หัวหน้าพยาบาล"},
@@ -39,25 +49,40 @@ if "staff_data" not in st.session_state:
         {"ลำดับ": 9, "ชื่อ - สกุล": "นางสาวI", "ตำแหน่ง": "หัวหน้าผู้ช่วยพยาบาล"},
         {"ลำดับ": 10,"ชื่อ - สกุล": "นางสาวJ", "ตำแหน่ง": "ผู้ช่วยพยาบาล"},
         {"ลำดับ": 11,"ชื่อ - สกุล": "นางสาวK", "ตำแหน่ง": "ผู้ช่วยพยาบาล"},
-        {"ลำดับ": 11,"ชื่อ - สกุล": "นางสาวL", "ตำแหน่ง": "ผู้ช่วยพยาบาล"},
-        {"ลำดับ": 11,"ชื่อ - สกุล": "นางสาวM", "ตำแหน่ง": "ผู้ช่วยพยาบาล"},
+        {"ลำดับ": 12,"ชื่อ - สกุล": "นางสาวL", "ตำแหน่ง": "ผู้ช่วยพยาบาล"},
+        {"ลำดับ": 13,"ชื่อ - สกุล": "นางสาวM", "ตำแหน่ง": "ผู้ช่วยพยาบาล"},
     ])
 
 edited_staff = st.data_editor(st.session_state.staff_data, num_rows="dynamic", use_container_width=True)
 st.session_state.staff_data = edited_staff
 
 st.markdown("---")
-st.subheader("⚙️ เงื่อนไขการประชุมและเกณฑ์")
-st.checkbox("เชื่อมโยงตารางประชุมคณะกรรมการหอผู้ป่วย (เช่น พุธที่ 1, พุธที่ 2 ของเดือน)", value=True)
-st.checkbox("ล็อกหัวหน้าหอผู้ป่วยและหัวหน้าผู้ช่วยขึ้นเวรเช้า จันทร์-ศุกร์", value=True)
-st.checkbox("จำกัดการทำงานติดต่อกันไม่เกิน 7 วัน", value=True)
-st.checkbox("พยาบาลเวรเช้า(รวมหัวหน้าพยาบาล จ-ศ 3 คน เวรบ่าย 2 คน เวรดึก 1 คน ส-อ พยาบาล 1 คน", value=True)
-st.checkbox("ผู้ช่วยพยาบาลเวรเช้า(รวมหัวหน้าผู้ช่วยพยาบาล จ-ศ 2 คน เวรบ่าย 1 คน เวรดึก 1 คน ส-อ ผู้ช่วยพยาบาล 1 คน", value=True)
+st.subheader("⚙️ กฎและเงื่อนไขตายตัว (Hard Constraints)")
+st.info(
+    "📌 **เงื่อนไขบังคับระบบ:**\n"
+    "1. **เวลาเวร:** เช้า (08:00 - 16:00), บ่าย (16:00 - 24:00), ดึก (24:00 - 08:00)\n"
+    "2. **ลำดับการขึ้นเวร:** ห้ามขึ้น 'บ่ายต่อดึก' และห้ามขึ้น 'ดึกต่อเช้า' (อนุญาตเฉพาะ เช้า→บ่าย หรือ บ่าย→เช้า เท่านั้น)\n"
+    "3. **วันหยุด:** พยาบาลและผู้ช่วยทุกคนต้องได้รับวันหยุดอย่างน้อย 1 วัน ทุกๆ 7 วัน"
+)
 
-
-
-
+st.checkbox("เชื่อมโยงตารางประชุมคณะกรรมการหอผู้ป่วย (เช่น พุธที่ 1, พุธที่ 2 ของเดือน)", value=True, key="rule_meeting")
+st.checkbox("ล็อกหัวหน้าหอผู้ป่วยและหัวหน้าผู้ช่วยขึ้นเวรเช้า จันทร์-ศุกร์", value=True, key="rule_head_morning")
+st.checkbox("จำกัดการทำงานติดต่อกันไม่เกิน 7 วัน", value=True, key="rule_max_days")
+st.checkbox("พยาบาลเวรเช้า (จ-ศ 3 คน / บ่าย 2 คน / ดึก 1 คน / ส-อ พยาบาล 1 คน)", value=True, key="rule_rn_ratio")
+st.checkbox("ผู้ช่วยพยาบาลเวรเช้า (จ-ศ 2 คน / บ่าย 1 คน / ดึก 1 คน / ส-อ ผู้ช่วย 1 คน)", value=True, key="rule_pn_ratio")
 
 st.markdown("---")
+st.subheader("📝 เงื่อนไขเพิ่มเติมเฉพาะเดือนนี้ (Soft Constraints / Custom Rules)")
+st.text_area(
+    "กรอกข้อจำกัดพิเศษ เช่น วันที่มีประชุม, คำขอลาหยุด (Vacation), หรือข้อจำกัดของบุคคล:",
+    placeholder="เช่น:\n- วันที่ 10 มีประชุมย่อยช่วงบ่าย\n- นางสาวB ขอลาหยุดวันที่ 15\n- นางสาวC ห้ามขึ้นเวรดึก",
+    key="custom_rules"
+)
+
+st.markdown("---")
+
+# บันทึกค่า AI Model ลง session state ไว้ใช้หน้าถัดไป
+st.session_state.ai_model_choice = "gemini-2.5-pro"
+
 if st.button("🚀 ยืนยันข้อมูลและไปหน้าจัดเวรอัจฉริยะ", type="primary", use_container_width=True):
     st.switch_page("pages/2.ai generate.py")
