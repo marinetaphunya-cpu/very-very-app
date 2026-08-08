@@ -20,7 +20,18 @@ t_month = st.session_state.get('target_month', 'สิงหาคม')
 t_year = st.session_state.get('target_year', 2569)
 
 st.title(f"📅 กำหนดการปฏิบัติงานสำหรับเจ้าหน้าที่พยาบาล เดือน{t_month} พ.ศ. {t_year}")
-st.info("💡 คำแนะนำ: ระบบจัดเวรอัจฉริยะใช้ตัวย่อมาตรฐาน (ช, บ, ด, ป, อ, x) พร้อมระบบสีตามระเบียบวอร์ด")
+
+# --- เพิ่มแถบแสดงคำอธิบายสี (Color Legend) ให้ชัดเจน ---
+st.markdown("""
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; font-size: 14px;">
+        <span style="background-color: #FFFFFF; border: 1px solid #ccc; padding: 3px 10px; border-radius: 4px;"><b>ช</b> = เวรเช้า</span>
+        <span style="background-color: #FFF9C4; border: 1px solid #ccc; padding: 3px 10px; border-radius: 4px;"><b>บ</b> = เวรบ่าย</span>
+        <span style="background-color: #E1BEE7; border: 1px solid #ccc; padding: 3px 10px; border-radius: 4px;"><b>ด</b> = เวรดึก</span>
+        <span style="background-color: #C8E6C9; border: 1px solid #ccc; padding: 3px 10px; border-radius: 4px; color: #1B5E20;"><b>ป</b> = ประชุม</span>
+        <span style="background-color: #B3E5FC; border: 1px solid #ccc; padding: 3px 10px; border-radius: 4px; color: #01579B;"><b>อ</b> = อบรม</span>
+        <span style="background-color: #FFCDD2; border: 1px solid #ccc; padding: 3px 10px; border-radius: 4px; color: #B71C1C;"><b>x</b> = วันหยุด</span>
+    </div>
+""", unsafe_allow_html=True)
 
 # --- ฟังก์ชันฟอร์แมตสีเซลล์และตัวย่อใน Pandas Styler ---
 def color_coding_shifts(val):
@@ -200,9 +211,10 @@ if "staff_data" in st.session_state:
     if "original_data" not in st.session_state:
         st.session_state.original_data = current_df.copy()
 
-    # --- แสดงผลตารางพร้อมแต่งสีสันและตัวย่อมาตรฐาน (เปลี่ยนจาก applymap เป็น map) ---
-    st.subheader("📊 ตารางเวรปฏิบัติงานประจำเดือน (สัญลักษณ์: ช, บ, ด, ป, อ, x)")
+    # --- แสดงผลหัวข้อตารางแบบกระชับ ไม่มีวงเล็บรกตา ---
+    st.subheader("📊 ตารางเวรปฏิบัติงานประจำเดือน")
     
+    # ใช้ style.map เพื่อใส่สีพื้นหลังตามตัวย่อ
     styled_df = current_df.style.map(color_coding_shifts, subset=[str(d) for d in range(1, 32)])
     
     edited_roster = st.data_editor(styled_df, use_container_width=True, key="ward_roster_editor")
