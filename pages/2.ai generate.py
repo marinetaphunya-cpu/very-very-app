@@ -27,8 +27,8 @@ st.write(f"กำลังจัดตารางเวรสำหรับ **
 # --- ส่วนของการเรียกใช้งานโมเดล Gemini ตัวล่าสุด ---
 # หมายเหตุ: ไอด้าต้องมั่นใจว่าตั้งค่า st.secrets["GOOGLE_API_KEY"] ไว้แล้วใน Streamlit Cloud
 try:
-    if "GOOGLE_API_KEY" in st.secrets:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+    if "MY_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["MY_API_KEY"])
         # ใช้โมเดลระดับท็อปสำหรับงานวิเคราะห์เงื่อนไขซับซ้อนตามที่ไอด้าต้องการ
         model = genai.GenerativeModel('gemini-2.5-pro')
     else:
