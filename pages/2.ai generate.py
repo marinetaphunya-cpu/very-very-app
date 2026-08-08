@@ -135,9 +135,9 @@ with st.status("กำลังวิเคราะห์ข้อมูลด�
                 types.Part.from_bytes(data=img["bytes"], mime_type=img.get("mime") or "image/jpeg")
             )
 
-        st.write("🤖 กำลังสั่งการ Gemini 3.1 Flash ประมวลผลตารางเวรตามอัตรากำลัง...")
+        st.write("🤖 กำลังสั่งการ Gemini 3.5 Flash ประมวลผลตารางเวรตามอัตรากำลัง...")
         response = client.models.generate_content(
-            model="gemini-3.1-flash",
+            model="gemini-3.5-flash",
             contents=contents,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
