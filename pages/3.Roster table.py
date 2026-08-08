@@ -64,19 +64,18 @@ if "staff_data" in st.session_state:
         col_values = [""] * num_rows
         is_weekend = (day % 7) in [5, 0]
         
-        # กำหนดจำลอง: วันที่ 7 เป็นวันประชุม (ป), วันที่ 14 เป็นวันอบรม (อ)
         is_meeting_day = (day == 7)
         is_training_day = (day == 14)
         
         for i in head_nurse_indices + head_asst_indices:
             if is_meeting_day:
-                col_values[i] = "ป" # ประชุม
+                col_values[i] = "ป"
                 prev_shifts[i] = "ป"
             elif is_training_day:
-                col_values[i] = "อ" # อบรม
+                col_values[i] = "อ"
                 prev_shifts[i] = "อ"
             elif not is_weekend:
-                col_values[i] = "ช" # เช้า
+                col_values[i] = "ช"
                 prev_shifts[i] = "ช"
                 consecutive_work_days[i] += 1
             else:
@@ -201,10 +200,10 @@ if "staff_data" in st.session_state:
     if "original_data" not in st.session_state:
         st.session_state.original_data = current_df.copy()
 
-    # --- แสดงผลตารางพร้อมแต่งสีสันและตัวย่อมาตรฐาน ---
+    # --- แสดงผลตารางพร้อมแต่งสีสันและตัวย่อมาตรฐาน (เปลี่ยนจาก applymap เป็น map) ---
     st.subheader("📊 ตารางเวรปฏิบัติงานประจำเดือน (สัญลักษณ์: ช, บ, ด, ป, อ, x)")
     
-    styled_df = current_df.style.applymap(color_coding_shifts, subset=[str(d) for d in range(1, 32)])
+    styled_df = current_df.style.map(color_coding_shifts, subset=[str(d) for d in range(1, 32)])
     
     edited_roster = st.data_editor(styled_df, use_container_width=True, key="ward_roster_editor")
 
