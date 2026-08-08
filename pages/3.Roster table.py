@@ -3,24 +3,6 @@ import pandas as pd
 import random
 import io
 
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-import os
-
-# ลงทะเบียนฟอนต์ไทย (รองรับทั้งภาษาไทยและตัวย่อเวร)
-try:
-    # ค้นหาฟอนต์ Thai ในระบบ (เช่น TH Sarabun PSK หรือ DejaVu)
-    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-    if not os.path.exists(font_path):
-        font_path = "DejaVuSans.ttf"
-    pdfmetrics.registerFont(TTFont('ThaiFont', font_path))
-    FONT_NAME = 'ThaiFont'
-except:
-    FONT_NAME = 'Helvetica'
-
 st.set_page_config(page_title="Very Very - Roster Table", page_icon="📅", layout="wide")
 
 hide_streamlit_style = """
@@ -235,60 +217,60 @@ if "staff_data" in st.session_state:
     st.subheader("📝 บันทึกข้อความ / หมายเหตุประจำเดือน")
     note_text = st.text_area("พิมพ์ข้อความชี้แจงเพิ่มเติมหรือบันทึกข้อตกลงในวอร์ด...", placeholder="เช่น บันทึกการประชุมพุธที่ 1 ของเดือน...")
 
-    # --- ฟังก์ชันสร้าง PDF พร้อมลงสีตามเซลล์เวร ---
-    def create_colored_pdf(df):
-        pdf_buffer = io.BytesIO()
-        doc = SimpleDocTemplate(
-            pdf_buffer, 
-            pagesize=landscape(letter), 
-            rightMargin=10, leftMargin=10, topMargin=15, bottomMargin=15
-        )
-        elements = []
-        
-        table_data = [df.columns.tolist()] + df.values.tolist()
-        pdf_table = Table(table_data)
-        
-        # กำหนดสไตล์ตารางเริ่มต้น (หัวตารางสีน้ำเงินเข้ม ตัวหนังสือขาว)
-        t_style = [
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 7),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ]
-        
-        # วนลูปเช็คค่าแต่ละเซลล์ในวันที่ 1 ถึง 31 เพื่อลงสีพื้นหลังใน PDF ให้ตรงกัน
-        day_col_indices = [df.columns.get_loc(str(d)) for d in range(1, 32) if str(d) in df.columns]
-        
-        for row_idx, row in df.iterrows():
-            for col_idx in day_col_indices:
-                val = str(row.iloc[col_idx]).strip()
-                cell_coord = (col_idx, row_idx + 1) # +1 เพราะแถวแรกเป็น Header
-                
-                if val == "บ":
-                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#FFF9C4')))
-                elif val == "ด":
-                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#E1BEE7')))
-                elif val == "ป":
-                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#C8E6C9')))
-                    t_style.append(('TEXTCOLOR', cell_coord, cell_coord, colors.HexColor('#1B5E20')))
-                elif val == "อ":
-                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#B3E5FC')))
-                    t_style.append(('TEXTCOLOR', cell_coord, cell_coord, colors.HexColor('#01579B')))
-                elif val.lower() == "x":
-                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#FFCDD2')))
-                    t_style.append(('TEXTCOLOR', cell_coord, cell_coord, colors.HexColor('#B71C1C')))
-                else:
-                    # เวรเช้า (ช) หรือค่าอื่นๆ เป็นพื้นหลังขาว
-                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.white))
+    # --- ฟังก์ชันสร้างไฟล์ HTML สำหรับดาวน์โหลด (เปิดในมือถือ/iPad จะเห็นสีและตัวอักษรไทยชัดเจน) ---
+    def create_html_report(df, month_name, year_val):
+        # แปลง DataFrame เป็น HTML พร้อมสไตล์ CSS รองรับภาษาไทยและสีช่องเวร
+        html_content = f"""
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <title>ตารางเวร เดือน {month_name} {year_val}</title>
+            <style>
+                body {{ font-family: 'Tahoma', 'Sarabun', sans-serif; padding: 20px; }}
+                h2 {{ text-align: center; color: #1E3A8A; }}
+                table {{ border-collapse: collapse; width: 100%; font-size: 11px; }}
+                th, td {{ border: 1px solid #999; padding: 6px; text-align: center; }}
+                th {{ background-color: #1E3A8A; color: white; }}
+                .shift-ch {{ background-color: #FFFFFF; color: #000; }}
+                .shift-b {{ background-color: #FFF9C4; color: #000; }}
+                .shift-d {{ background-color: #E1BEE7; color: #000; }}
+                .shift-p {{ background-color: #C8E6C9; color: #1B5E20; font-weight: bold; }}
+                .shift-o {{ background-color: #B3E5FC; color: #01579B; font-weight: bold; }}
+                .shift-x {{ background-color: #FFCDD2; color: #B71C1C; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <h2>📅 กำหนดการปฏิบัติงานพยาบาล เดือน{month_name} พ.ศ. {year_val}</h2>
+            <table>
+                <tr>
+        """
+        for col in df.columns:
+            html_content += f"<th>{col}</th>"
+        html_content += "</tr>"
 
-        pdf_table.setStyle(TableStyle(t_style))
-        elements.append(pdf_table)
-        doc.build(elements)
-        pdf_buffer.seek(0)
-        return pdf_buffer
+        for _, row in df.iterrows():
+            html_content += "<tr>"
+            for col_idx, col_name in enumerate(df.columns):
+                val = str(row[col_name])
+                if col_name in [str(d) for d in range(1, 32)]:
+                    v_trim = val.strip()
+                    if v_trim == "บ": cls = "shift-b"
+                    elif v_trim == "ด": cls = "shift-d"
+                    elif v_trim == "ป": cls = "shift-p"
+                    elif v_trim == "อ": cls = "shift-o"
+                    elif v_trim.lower() == "x": cls = "shift-x"
+                    else: cls = "shift-ch"
+                    html_content += f"<td class='{cls}'>{val}</td>"
+                else:
+                    html_content += f"<td style='text-align: left;'>{val}</td>"
+            html_content += "</tr>"
+
+        html_content += """
+            </table>
+        </body>
+        </html>
+        """
+        return io.BytesIO(html_content.encode('utf-8'))
 
     st.markdown("---")
     col1, col2, col3 = st.columns([4, 3, 3])
@@ -299,13 +281,13 @@ if "staff_data" in st.session_state:
         if st.button("💾 บันทึกการแก้ไข", use_container_width=True):
             st.success("บันทึกการแก้ไขเรียบร้อยแล้ว!")
     with col3:
-        # ปุ่มดาวน์โหลด PDF ที่ใส่สีสันสมบูรณ์แบบ
-        pdf_data = create_colored_pdf(current_df)
+        # ปุ่มดาวน์โหลดไฟล์รายงานแบบ HTML (เปิดบน iPad หรือมือถือผ่านเบราว์เซอร์ จะสวยงาม สีและตัวหนังสือมาเต็ม)
+        html_data = create_html_report(current_df, t_month, t_year)
         st.download_button(
-            label="📥 ดาวน์โหลดตารางเวร (PDF)",
-            data=pdf_data,
-            file_name=f"roster_{t_month}_{t_year}.pdf",
-            mime="application/pdf",
+            label="📥 ดาวน์โหลดตารางเวร (รายงาน)",
+            data=html_data,
+            file_name=f"roster_{t_month}_{t_year}.html",
+            mime="text/html",
             use_container_width=True
         )
 
