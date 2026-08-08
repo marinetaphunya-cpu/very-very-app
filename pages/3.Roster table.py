@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import random
 import io
+from weasyprint import HTML
 
 st.set_page_config(page_title="Very Very - Roster Table", page_icon="📅", layout="wide")
 
@@ -52,30 +53,30 @@ def color_coding_shifts(val):
 if "staff_data" in st.session_state:
     staff_df = st.session_state.staff_data
     num_rows = len(staff_df)
-    
+
     names = staff_df.get("ชื่อ - สกุล", [""] * num_rows).tolist()
     positions = staff_df.get("ตำแหน่ง", [""] * num_rows).tolist()
-    
+
     data = {
         "ลำดับ": staff_df.get("ลำดับ", list(range(1, num_rows + 1))),
         "ชื่อ - สกุล": names,
         "ตำแหน่ง": positions
     }
-    
+
     head_nurse_indices = [i for i, pos in enumerate(positions) if "หัวหน้าพยาบาล" in str(pos)]
     nurse_indices = [i for i, pos in enumerate(positions) if "พยาบาล" in str(pos) and "ผู้ช่วย" not in str(pos) and "หัวหน้าพยาบาล" not in str(pos)]
     head_asst_indices = [i for i, pos in enumerate(positions) if "หัวหน้าผู้ช่วย" in str(pos)]
     asst_indices = [i for i, pos in enumerate(positions) if ("ผู้ช่วย" in str(pos) or "ผู้ปฏิบัติ" in str(pos)) and "หัวหน้าผู้ช่วย" not in str(pos)]
-    
+
     prev_shifts = [""] * num_rows
     consecutive_work_days = [0] * num_rows
-    
+
     for day in range(1, 32):
         col_values = [""] * num_rows
         is_weekend = (day % 7) in [5, 0]
         is_meeting_day = (day == 7)
         is_training_day = (day == 14)
-        
+
         for i in head_nurse_indices + head_asst_indices:
             if is_meeting_day:
                 col_values[i] = "ป"
@@ -105,13 +106,13 @@ if "staff_data" in st.session_state:
         needed_n_morning = 3 if not is_weekend else 1
         needed_n_afternoon = 2 if not is_weekend else 1
         needed_n_night = 1
-        
+
         current_morning_nurses = sum(1 for i in head_nurse_indices if col_values[i] in ["ช", "ป", "อ"])
         remaining_morning_n = max(0, needed_n_morning - current_morning_nurses)
-        
+
         free_nurses = [i for i in nurse_indices if col_values[i] == ""]
         random.shuffle(free_nurses)
-        
+
         for _ in range(remaining_morning_n):
             if free_nurses:
                 idx = free_nurses.pop(0)
@@ -147,13 +148,13 @@ if "staff_data" in st.session_state:
         needed_a_morning = 2 if not is_weekend else 1
         needed_a_afternoon = 1
         needed_a_night = 1
-        
+
         current_morning_asst = sum(1 for i in head_asst_indices if col_values[i] in ["ช", "ป", "อ"])
         remaining_morning_a = max(0, needed_a_morning - current_morning_asst)
-        
+
         free_assts = [i for i in (asst_indices + head_asst_indices) if col_values[i] == ""]
         random.shuffle(free_assts)
-        
+
         for _ in range(remaining_morning_a):
             if free_assts:
                 idx = free_assts.pop(0)
@@ -193,7 +194,7 @@ if "staff_data" in st.session_state:
                 consecutive_work_days[i] = 0
 
         data[str(day)] = col_values
-        
+
     data["หยุด"] = ["8"] * num_rows
     data["ค้าง"] = ["0"] * num_rows
     data["OT_ด"] = ["1"] * num_rows
@@ -204,7 +205,7 @@ if "staff_data" in st.session_state:
     data["หมายเหตุ"] = [""] * num_rows
 
     current_df = pd.DataFrame(data)
-    
+
     if "original_data" not in st.session_state:
         st.session_state.original_data = current_df.copy()
 
@@ -217,16 +218,16 @@ if "staff_data" in st.session_state:
     st.subheader("📝 บันทึกข้อความ / หมายเหตุประจำเดือน")
     note_text = st.text_area("พิมพ์ข้อความชี้แจงเพิ่มเติมหรือบันทึกข้อตกลงในวอร์ด...", placeholder="เช่น บันทึกการประชุมพุธที่ 1 ของเดือน...")
 
-    # --- ฟังก์ชันสร้างไฟล์ HTML สำหรับดาวน์โหลด (เปิดในมือถือ/iPad จะเห็นสีและตัวอักษรไทยชัดเจน) ---
-    def create_html_report(df, month_name, year_val):
-        # แปลง DataFrame เป็น HTML พร้อมสไตล์ CSS รองรับภาษาไทยและสีช่องเวร
+    # --- ฟังก์ชันสร้าง HTML ที่ใช้ร่วมกันทั้งสองแบบ (HTML report / PDF) ---
+    def build_html_table(df, month_name, year_val, page_css=""):
         html_content = f"""
         <html>
         <head>
             <meta charset="utf-8">
             <title>ตารางเวร เดือน {month_name} {year_val}</title>
             <style>
-                body {{ font-family: 'Tahoma', 'Sarabun', sans-serif; padding: 20px; }}
+                {page_css}
+                body {{ font-family: 'Tahoma', 'Sarabun', 'Loma', 'Garuda', sans-serif; padding: 20px; }}
                 h2 {{ text-align: center; color: #1E3A8A; }}
                 table {{ border-collapse: collapse; width: 100%; font-size: 11px; }}
                 th, td {{ border: 1px solid #999; padding: 6px; text-align: center; }}
@@ -250,7 +251,7 @@ if "staff_data" in st.session_state:
 
         for _, row in df.iterrows():
             html_content += "<tr>"
-            for col_idx, col_name in enumerate(df.columns):
+            for col_name in df.columns:
                 val = str(row[col_name])
                 if col_name in [str(d) for d in range(1, 32)]:
                     v_trim = val.strip()
@@ -270,10 +271,22 @@ if "staff_data" in st.session_state:
         </body>
         </html>
         """
+        return html_content
+
+    def create_html_report(df, month_name, year_val):
+        # ไฟล์ HTML สำหรับเปิดในมือถือ/iPad (ไม่ fix ขนาดหน้ากระดาษ)
+        html_content = build_html_table(df, month_name, year_val)
         return io.BytesIO(html_content.encode('utf-8'))
 
+    def create_pdf_report(df, month_name, year_val):
+        # ไฟล์ PDF ใช้กระดาษ A3 แนวนอน เพราะคอลัมน์เยอะ (31 วัน + สรุป)
+        pdf_css = "@page { size: A3 landscape; margin: 1cm; }"
+        html_content = build_html_table(df, month_name, year_val, page_css=pdf_css)
+        pdf_bytes = HTML(string=html_content).write_pdf()
+        return io.BytesIO(pdf_bytes)
+
     st.markdown("---")
-    col1, col2, col3 = st.columns([4, 3, 3])
+    col1, col2, col3, col4 = st.columns([3, 3, 3, 3])
     with col1:
         if st.button("⬅️ ย้อนกลับไปหน้าตั้งค่า", use_container_width=True):
             st.switch_page("pages/1.staff setup.py")
@@ -281,13 +294,21 @@ if "staff_data" in st.session_state:
         if st.button("💾 บันทึกการแก้ไข", use_container_width=True):
             st.success("บันทึกการแก้ไขเรียบร้อยแล้ว!")
     with col3:
-        # ปุ่มดาวน์โหลดไฟล์รายงานแบบ HTML (เปิดบน iPad หรือมือถือผ่านเบราว์เซอร์ จะสวยงาม สีและตัวหนังสือมาเต็ม)
         html_data = create_html_report(current_df, t_month, t_year)
         st.download_button(
-            label="📥 ดาวน์โหลดตารางเวร (รายงาน)",
+            label="📥 ดาวน์โหลด HTML",
             data=html_data,
             file_name=f"roster_{t_month}_{t_year}.html",
             mime="text/html",
+            use_container_width=True
+        )
+    with col4:
+        pdf_data = create_pdf_report(current_df, t_month, t_year)
+        st.download_button(
+            label="📄 ดาวน์โหลด PDF",
+            data=pdf_data,
+            file_name=f"roster_{t_month}_{t_year}.pdf",
+            mime="application/pdf",
             use_container_width=True
         )
 
