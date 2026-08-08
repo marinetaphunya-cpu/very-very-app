@@ -3,24 +3,26 @@ import pandas as pd
 import random
 import io
 
-# นำเข้าไลบรารีสำหรับสร้าง PDF (ReportLab)
 from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from reportlab.lib import colors
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
+import os
 
-# ลงทะเบียนฟอนต์ไทย (ใช้ฟอนต์มาตรฐานที่รองรับภาษาไทยในระบบ หรือฟอนต์พื้นฐาน)
-# หากรันบน Streamlit Cloud จะใช้ฟอนต์ระบบที่มีรองรับ
+# ลงทะเบียนฟอนต์ไทย (รองรับทั้งภาษาไทยและตัวย่อเวร)
 try:
-    pdfmetrics.registerFont(TTFont('ThaiFont', 'DejaVuSans.ttf'))
+    # ค้นหาฟอนต์ Thai ในระบบ (เช่น TH Sarabun PSK หรือ DejaVu)
+    font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+    if not os.path.exists(font_path):
+        font_path = "DejaVuSans.ttf"
+    pdfmetrics.registerFont(TTFont('ThaiFont', font_path))
     FONT_NAME = 'ThaiFont'
 except:
     FONT_NAME = 'Helvetica'
 
 st.set_page_config(page_title="Very Very - Roster Table", page_icon="📅", layout="wide")
 
-# --- CSS สำหรับซ่อนแถบเมนู Sidebar ด้านข้างของ Streamlit ---
 hide_streamlit_style = """
     <style>
     [data-testid="stSidebarNav"] {display: none;}
@@ -49,7 +51,6 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# --- ฟังก์ชันกำหนดสีสำหรับแต่ละช่องย่อยในตาราง ---
 def color_coding_shifts(val):
     val_str = str(val).strip()
     if val_str == "ช":
@@ -90,7 +91,6 @@ if "staff_data" in st.session_state:
     for day in range(1, 32):
         col_values = [""] * num_rows
         is_weekend = (day % 7) in [5, 0]
-        
         is_meeting_day = (day == 7)
         is_training_day = (day == 14)
         
@@ -162,7 +162,6 @@ if "staff_data" in st.session_state:
             prev_shifts[idx] = "x"
             consecutive_work_days[idx] = 0
 
-        # ผู้ช่วยพยาบาล
         needed_a_morning = 2 if not is_weekend else 1
         needed_a_afternoon = 1
         needed_a_night = 1
@@ -236,31 +235,56 @@ if "staff_data" in st.session_state:
     st.subheader("📝 บันทึกข้อความ / หมายเหตุประจำเดือน")
     note_text = st.text_area("พิมพ์ข้อความชี้แจงเพิ่มเติมหรือบันทึกข้อตกลงในวอร์ด...", placeholder="เช่น บันทึกการประชุมพุธที่ 1 ของเดือน...")
 
-    # --- ฟังก์ชันสำหรับสร้างไฟล์ PDF สำหรับดาวน์โหลด ---
-    def create_pdf(df, month_name, year_val):
+    # --- ฟังก์ชันสร้าง PDF พร้อมลงสีตามเซลล์เวร ---
+    def create_colored_pdf(df):
         pdf_buffer = io.BytesIO()
         doc = SimpleDocTemplate(
             pdf_buffer, 
             pagesize=landscape(letter), 
-            rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20
+            rightMargin=10, leftMargin=10, topMargin=15, bottomMargin=15
         )
         elements = []
         
-        # แปลง DataFrame เป็น List สำหรับใส่ใน Table ของ ReportLab
         table_data = [df.columns.tolist()] + df.values.tolist()
-        
-        # สร้างตาราง PDF
         pdf_table = Table(table_data)
-        pdf_table.setStyle(TableStyle([
+        
+        # กำหนดสไตล์ตารางเริ่มต้น (หัวตารางสีน้ำเงินเข้ม ตัวหนังสือขาว)
+        t_style = [
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
-            ('FONTSIZE', (0, 0), (-1, -1), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('FONTSIZE', (0, 0), (-1, -1), 7),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ]))
+        ]
         
+        # วนลูปเช็คค่าแต่ละเซลล์ในวันที่ 1 ถึง 31 เพื่อลงสีพื้นหลังใน PDF ให้ตรงกัน
+        day_col_indices = [df.columns.get_loc(str(d)) for d in range(1, 32) if str(d) in df.columns]
+        
+        for row_idx, row in df.iterrows():
+            for col_idx in day_col_indices:
+                val = str(row.iloc[col_idx]).strip()
+                cell_coord = (col_idx, row_idx + 1) # +1 เพราะแถวแรกเป็น Header
+                
+                if val == "บ":
+                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#FFF9C4')))
+                elif val == "ด":
+                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#E1BEE7')))
+                elif val == "ป":
+                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#C8E6C9')))
+                    t_style.append(('TEXTCOLOR', cell_coord, cell_coord, colors.HexColor('#1B5E20')))
+                elif val == "อ":
+                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#B3E5FC')))
+                    t_style.append(('TEXTCOLOR', cell_coord, cell_coord, colors.HexColor('#01579B')))
+                elif val.lower() == "x":
+                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.HexColor('#FFCDD2')))
+                    t_style.append(('TEXTCOLOR', cell_coord, cell_coord, colors.HexColor('#B71C1C')))
+                else:
+                    # เวรเช้า (ช) หรือค่าอื่นๆ เป็นพื้นหลังขาว
+                    t_style.append(('BACKGROUND', cell_coord, cell_coord, colors.white))
+
+        pdf_table.setStyle(TableStyle(t_style))
         elements.append(pdf_table)
         doc.build(elements)
         pdf_buffer.seek(0)
@@ -275,8 +299,8 @@ if "staff_data" in st.session_state:
         if st.button("💾 บันทึกการแก้ไข", use_container_width=True):
             st.success("บันทึกการแก้ไขเรียบร้อยแล้ว!")
     with col3:
-        # ปุ่มดาวน์โหลดไฟล์ PDF จริงๆ จังๆ
-        pdf_data = create_pdf(current_df, t_month, t_year)
+        # ปุ่มดาวน์โหลด PDF ที่ใส่สีสันสมบูรณ์แบบ
+        pdf_data = create_colored_pdf(current_df)
         st.download_button(
             label="📥 ดาวน์โหลดตารางเวร (PDF)",
             data=pdf_data,
