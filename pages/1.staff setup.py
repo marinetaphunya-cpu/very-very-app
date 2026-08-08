@@ -79,6 +79,38 @@ st.text_area(
     key="custom_rules"
 )
 
+# --- แนบรูปภาพเพิ่มเติม (เช่น รูปใบลา, รูปกระดานเวรที่เขียนมือ) ให้ AI ช่วยอ่านประกอบ ---
+st.markdown("##### 📎 แนบรูปภาพประกอบ (ถ้ามี)")
+tab_upload, tab_camera = st.tabs(["🖼️ เลือกจากคลังภาพ", "📷 ถ่ายภาพ"])
+
+with tab_upload:
+    gallery_files = st.file_uploader(
+        "เลือกรูปภาพได้หลายไฟล์ เช่น รูปใบลา, ตารางเวรที่เขียนมือ",
+        type=["png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="gallery_uploader"
+    )
+
+with tab_camera:
+    camera_file = st.camera_input("ถ่ายภาพด้วยกล้อง", key="camera_uploader")
+
+# รวมรูปจากทั้งสองช่องทาง เก็บเป็น bytes ไว้ใน session_state เพื่อส่งต่อให้หน้า AI generate ใช้ร่วมกับ Gemini
+combined_images = []
+if gallery_files:
+    for f in gallery_files:
+        combined_images.append({"name": f.name, "bytes": f.getvalue(), "mime": f.type})
+if camera_file is not None:
+    combined_images.append({"name": "camera_capture.jpg", "bytes": camera_file.getvalue(), "mime": "image/jpeg"})
+
+st.session_state.attached_images = combined_images
+
+if st.session_state.attached_images:
+    st.caption(f"แนบรูปภาพแล้ว {len(st.session_state.attached_images)} รูป")
+    preview_cols = st.columns(min(len(st.session_state.attached_images), 4))
+    for i, img in enumerate(st.session_state.attached_images):
+        with preview_cols[i % len(preview_cols)]:
+            st.image(img["bytes"], use_container_width=True, caption=img["name"])
+
 st.markdown("---")
 
 # บันทึกค่า AI Model ลง session state ไว้ใช้หน้าถัดไป
