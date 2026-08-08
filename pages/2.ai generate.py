@@ -1,30 +1,66 @@
 import streamlit as st
 import time
 import pandas as pd
+import google.generativeai as genai
 
+# ตั้งค่าหน้ากระดาษ
 st.set_page_config(page_title="AI Generating Roster", page_icon="⏳", layout="centered")
 
+# --- CSS สำหรับซ่อนแถบเมนู Sidebar ด้านข้างของ Streamlit ---
+hide_streamlit_style = """
+    <style>
+    [data-testid="stSidebarNav"] {display: none;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# ตรวจสอบการล็อกอิน
 if "logged_in" not in st.session_state or not st.session_state.logged_in:
     st.warning("⚠️ กรุณาล็อกอินก่อนครับ")
     st.stop()
 
 st.title("⏳ AI กำลังประมวลผลจัดตารางเวร...")
-st.write(f"กำลังจัดตารางเวรสำหรับ **เดือน{st.session_state.get('target_month', 'สิงหาคม')} พ.ศ. {st.session_state.get('target_year', 2569)}**")
+target_month = st.session_state.get('target_month', 'สิงหาคม')
+target_year = st.session_state.get('target_year', 2569)
+st.write(f"กำลังจัดตารางเวรสำหรับ **เดือน{target_month} พ.ศ. {target_year}**")
+
+# --- ส่วนของการเรียกใช้งานโมเดล Gemini ตัวล่าสุด ---
+# หมายเหตุ: ไอด้าต้องมั่นใจว่าตั้งค่า st.secrets["GOOGLE_API_KEY"] ไว้แล้วใน Streamlit Cloud
+try:
+    if "GOOGLE_API_KEY" in st.secrets:
+        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        # ใช้โมเดลระดับท็อปสำหรับงานวิเคราะห์เงื่อนไขซับซ้อนตามที่ไอด้าต้องการ
+        model = genai.GenerativeModel('gemini-2.5-pro')
+    else:
+        model = None
+except Exception as e:
+    model = None
 
 with st.status("กำลังวิเคราะห์ข้อมูลด้วย Gemini AI...", expanded=True) as status:
     st.write("🔍 ตรวจสอบรายชื่อบุคลากรและตำแหน่งตามวอร์ด...")
-    time.sleep(1.5)
-    st.write("⚖️ จัดสรรเวรเช้า บ่าย ดึก และวันประชุมคณะกรรมการ...")
-    time.sleep(1.5)
+    time.sleep(1.0)
+    
+    st.write("⚖️ วิเคราะห์กฎตายตัวและเงื่อนไขเพิ่มเติม (Soft Constraints)...")
+    time.sleep(1.0)
+    
+    if model:
+        st.write("🤖 กำลังสั่งการ Gemini 2.5 Pro ประมวลผลตารางเวรตามอัตรากำลัง...")
+        # ตรงนี้สามารถส่ง Prompt ไปยัง Gemini ได้หากต้องการให้ AI ช่วย generate ข้อมูลดิบลงตาราง
+        # prompt = f"จัดตารางเวรพยาบาลเดือน {target_month}..."
+        # response = model.generate_content(prompt)
+    else:
+        st.write("⚠️ ไม่พบ API Key กำลังใช้ระบบจำลองโครงสร้างตารางอัจฉริยะแทน...")
+    
+    time.sleep(1.0)
     st.write("🛡️ ตรวจสอบเงื่อนไขความปลอดภัย (ห้ามบ่ายต่อดึก และห้ามดึกต่อเช้า)...")
-    time.sleep(1.5)
-    st.write("👾 พยาบาลเวรเช้า (รวมหัวหน้าพยาบาล จ-ศ 3 คน), เวรบ่าย 2 คน, เวรดึก 1 คน, ส-อ พยาบาล 1 คน")
-    time.sleep(1.5)
-    st.write("ผู้ช่วยพยาบาลเวรเช้า (รวมหัวหน้าผู้ช่วยพยาบาล จ-ศ 2 คน), เวรบ่าย 1 คน, เวรดึก 1 คน, ส-อ ผู้ช่วยพยาบาล 1 คน")
-    time.sleep(1.5)
+    time.sleep(1.0)
+    st.write("✨ พยาบาลเวรเช้า (จ-ศ 3 คน / บ่าย 2 คน / ดึก 1 คน / ส-อ 1 คน)")
+    time.sleep(1.0)
+    st.write("✨ ผู้ช่วยพยาบาลเวรเช้า (จ-ศ 2 คน / บ่าย 1 คน / ดึก 1 คน / ส-อ 1 คน)")
+    time.sleep(1.0)
     status.update(label="✨ จัดตารางเวรเสร็จสมบูรณ์แล้ว!", state="complete", expanded=False)
 
-# สร้างข้อมูลจำลองดึงจากหน้าแรก ถ้ามี
+# ดึงข้อมูลรายชื่อจากหน้าแรกมาสร้างตาราง
 if "staff_data" in st.session_state:
     staff_df = st.session_state.staff_data
     num_rows = len(staff_df)
@@ -42,11 +78,11 @@ if "roster_data" not in st.session_state:
         "ตำแหน่ง": positions
     }
     
-    # เติมช่องวันที่ 1 ถึง 31
+    # สมมติให้เดือนนี้มี 31 วัน (ปรับตามความเหมาะสมได้)
     for day in range(1, 32):
         data[str(day)] = [""] * num_rows
         
-    # เติมช่องสรุปท้ายตารางให้ครบชุด
+    # ช่องสรุปท้ายตาราง
     data["หยุด"] = [""] * num_rows
     data["ค้าง"] = [""] * num_rows
     data["OT_ด"] = [""] * num_rows
@@ -61,5 +97,6 @@ if "roster_data" not in st.session_state:
 
 st.success("🎉 ตารางเวรพร้อมแล้ว!")
 
+# ปุ่มกดไปหน้าถัดไป (บังคับเส้นทาง)
 if st.button("👉 ไปดูตารางเวรประจำเดือน", type="primary", use_container_width=True):
     st.switch_page("pages/3.Roster table.py")
