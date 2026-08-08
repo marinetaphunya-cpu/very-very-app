@@ -1,6 +1,22 @@
 import streamlit as st
 import pandas as pd
 import random
+import io
+
+# นำเข้าไลบรารีสำหรับสร้าง PDF (ReportLab)
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+# ลงทะเบียนฟอนต์ไทย (ใช้ฟอนต์มาตรฐานที่รองรับภาษาไทยในระบบ หรือฟอนต์พื้นฐาน)
+# หากรันบน Streamlit Cloud จะใช้ฟอนต์ระบบที่มีรองรับ
+try:
+    pdfmetrics.registerFont(TTFont('ThaiFont', 'DejaVuSans.ttf'))
+    FONT_NAME = 'ThaiFont'
+except:
+    FONT_NAME = 'Helvetica'
 
 st.set_page_config(page_title="Very Very - Roster Table", page_icon="📅", layout="wide")
 
@@ -211,16 +227,44 @@ if "staff_data" in st.session_state:
     if "original_data" not in st.session_state:
         st.session_state.original_data = current_df.copy()
 
-    # --- แสดงผลตารางพร้อมลงสีในแต่ละช่องย่อย (เปลี่ยนจาก st.data_editor เป็น st.dataframe) ---
+    # --- แสดงผลตารางบนเว็บ ---
     st.subheader("📊 ตารางเวรปฏิบัติงานประจำเดือน")
-    
     styled_df = current_df.style.map(color_coding_shifts, subset=[str(d) for d in range(1, 32)])
-    
     st.dataframe(styled_df, use_container_width=True, height=500)
 
     st.markdown("---")
     st.subheader("📝 บันทึกข้อความ / หมายเหตุประจำเดือน")
     note_text = st.text_area("พิมพ์ข้อความชี้แจงเพิ่มเติมหรือบันทึกข้อตกลงในวอร์ด...", placeholder="เช่น บันทึกการประชุมพุธที่ 1 ของเดือน...")
+
+    # --- ฟังก์ชันสำหรับสร้างไฟล์ PDF สำหรับดาวน์โหลด ---
+    def create_pdf(df, month_name, year_val):
+        pdf_buffer = io.BytesIO()
+        doc = SimpleDocTemplate(
+            pdf_buffer, 
+            pagesize=landscape(letter), 
+            rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20
+        )
+        elements = []
+        
+        # แปลง DataFrame เป็น List สำหรับใส่ใน Table ของ ReportLab
+        table_data = [df.columns.tolist()] + df.values.tolist()
+        
+        # สร้างตาราง PDF
+        pdf_table = Table(table_data)
+        pdf_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1E3A8A')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, -1), FONT_NAME),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        
+        elements.append(pdf_table)
+        doc.build(elements)
+        pdf_buffer.seek(0)
+        return pdf_buffer
 
     st.markdown("---")
     col1, col2, col3 = st.columns([4, 3, 3])
@@ -231,8 +275,15 @@ if "staff_data" in st.session_state:
         if st.button("💾 บันทึกการแก้ไข", use_container_width=True):
             st.success("บันทึกการแก้ไขเรียบร้อยแล้ว!")
     with col3:
-        if st.button("🔗 แชร์ตารางเวร", use_container_width=True):
-            st.toast("คัดลอกลิงก์สำหรับแชร์สำเร็จ!", icon="🚀")
+        # ปุ่มดาวน์โหลดไฟล์ PDF จริงๆ จังๆ
+        pdf_data = create_pdf(current_df, t_month, t_year)
+        st.download_button(
+            label="📥 ดาวน์โหลดตารางเวร (PDF)",
+            data=pdf_data,
+            file_name=f"roster_{t_month}_{t_year}.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
 
 else:
     st.warning("⚠️ กรุณากลับไปกรอกรายชื่อที่หน้า Staff Setup ก่อนครับ")
