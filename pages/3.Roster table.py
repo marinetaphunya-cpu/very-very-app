@@ -21,7 +21,7 @@ t_year = st.session_state.get('target_year', 2569)
 
 st.title(f"📅 กำหนดการปฏิบัติงานสำหรับเจ้าหน้าที่พยาบาล เดือน{t_month} พ.ศ. {t_year}")
 
-# --- เพิ่มแถบแสดงคำอธิบายสี (Color Legend) ให้ชัดเจน ---
+# --- แถบแสดงคำอธิบายสี (Color Legend) ด้านบนสุด ---
 st.markdown("""
     <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; font-size: 14px;">
         <span style="background-color: #FFFFFF; border: 1px solid #ccc; padding: 3px 10px; border-radius: 4px;"><b>ช</b> = เวรเช้า</span>
@@ -33,21 +33,21 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# --- ฟังก์ชันฟอร์แมตสีเซลล์และตัวย่อใน Pandas Styler ---
+# --- ฟังก์ชันกำหนดสีสำหรับแต่ละช่องย่อยในตาราง ---
 def color_coding_shifts(val):
     val_str = str(val).strip()
     if val_str == "ช":
-        return 'background-color: #FFFFFF; color: #000000; text-align: center;'  # เวรเช้า (ช): สีขาว
+        return 'background-color: #FFFFFF; color: #000000; text-align: center;'
     elif val_str == "บ":
-        return 'background-color: #FFF9C4; color: #000000; text-align: center;'  # เวรบ่าย (บ): สีเหลืองอ่อน
+        return 'background-color: #FFF9C4; color: #000000; text-align: center;'
     elif val_str == "ด":
-        return 'background-color: #E1BEE7; color: #000000; text-align: center;'  # เวรดึก (ด): สีม่วงอ่อน
+        return 'background-color: #E1BEE7; color: #000000; text-align: center;'
     elif val_str == "ป":
-        return 'background-color: #C8E6C9; color: #1B5E20; font-weight: bold; text-align: center;'  # ประชุม (ป): สีเขียว
+        return 'background-color: #C8E6C9; color: #1B5E20; font-weight: bold; text-align: center;'
     elif val_str == "อ":
-        return 'background-color: #B3E5FC; color: #01579B; font-weight: bold; text-align: center;'  # อบรม (อ): สีฟ้า
+        return 'background-color: #B3E5FC; color: #01579B; font-weight: bold; text-align: center;'
     elif val_str.lower() == "x":
-        return 'background-color: #FFCDD2; color: #B71C1C; font-weight: bold; text-align: center;'  # วันหยุด (x): สีแดง
+        return 'background-color: #FFCDD2; color: #B71C1C; font-weight: bold; text-align: center;'
     return 'text-align: center;'
 
 if "staff_data" in st.session_state:
@@ -211,10 +211,9 @@ if "staff_data" in st.session_state:
     if "original_data" not in st.session_state:
         st.session_state.original_data = current_df.copy()
 
-    # --- แสดงผลหัวข้อตารางแบบกระชับ ไม่มีวงเล็บรกตา ---
+    # --- แสดงผลตารางพร้อมลงสีในแต่ละช่องย่อย (เซลล์) ---
     st.subheader("📊 ตารางเวรปฏิบัติงานประจำเดือน")
     
-    # ใช้ style.map เพื่อใส่สีพื้นหลังตามตัวย่อ
     styled_df = current_df.style.map(color_coding_shifts, subset=[str(d) for d in range(1, 32)])
     
     edited_roster = st.data_editor(styled_df, use_container_width=True, key="ward_roster_editor")
