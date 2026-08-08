@@ -73,26 +73,58 @@ st.checkbox("ผู้ช่วยพยาบาลเวรเช้า (จ-�
 
 st.markdown("---")
 st.subheader("📝 เงื่อนไขเพิ่มเติมเฉพาะเดือนนี้ (Soft Constraints / Custom Rules)")
+
+# --- CSS: ทำให้ปุ่ม popover กลายเป็นวงกลมสีแดงลอยมุมขวาบนของกล่องกรอกข้อความ ---
+st.markdown("""
+<style>
+.attach-plus-wrapper {
+    position: relative;
+}
+.attach-plus-wrapper [data-testid="stPopover"] {
+    position: absolute;
+    top: -46px;
+    right: 4px;
+    z-index: 999;
+}
+.attach-plus-wrapper [data-testid="stPopover"] > div > button {
+    background-color: #FF3B30 !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 50% !important;
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+    padding: 0 !important;
+    font-size: 18px !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+}
+.attach-plus-wrapper [data-testid="stPopover"] > div > button:hover {
+    background-color: #D32F2F !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="attach-plus-wrapper">', unsafe_allow_html=True)
+
 st.text_area(
     "กรอกข้อจำกัดพิเศษ เช่น วันที่มีประชุม, คำขอลาหยุด (Vacation), หรือข้อจำกัดของบุคคล:",
     placeholder="เช่น:\n- วันที่ 10 มีประชุมย่อยช่วงบ่าย\n- นางสาวB ขอลาหยุดวันที่ 15\n- นางสาวC ห้ามขึ้นเวรดึก",
     key="custom_rules"
 )
 
-# --- แนบรูปภาพเพิ่มเติม (เช่น รูปใบลา, รูปกระดานเวรที่เขียนมือ) ให้ AI ช่วยอ่านประกอบ ---
-st.markdown("##### 📎 แนบรูปภาพประกอบ (ถ้ามี)")
-tab_upload, tab_camera = st.tabs(["🖼️ เลือกจากคลังภาพ", "📷 ถ่ายภาพ"])
-
-with tab_upload:
+with st.popover("＋"):
+    st.markdown("**📎 แนบรูปภาพประกอบ**")
     gallery_files = st.file_uploader(
-        "เลือกรูปภาพได้หลายไฟล์ เช่น รูปใบลา, ตารางเวรที่เขียนมือ",
+        "เลือกจากคลังภาพ (เลือกได้หลายไฟล์)",
         type=["png", "jpg", "jpeg"],
         accept_multiple_files=True,
         key="gallery_uploader"
     )
+    camera_file = st.camera_input("หรือถ่ายภาพด้วยกล้อง", key="camera_uploader")
 
-with tab_camera:
-    camera_file = st.camera_input("ถ่ายภาพด้วยกล้อง", key="camera_uploader")
+st.markdown('</div>', unsafe_allow_html=True)
 
 # รวมรูปจากทั้งสองช่องทาง เก็บเป็น bytes ไว้ใน session_state เพื่อส่งต่อให้หน้า AI generate ใช้ร่วมกับ Gemini
 combined_images = []
@@ -105,7 +137,7 @@ if camera_file is not None:
 st.session_state.attached_images = combined_images
 
 if st.session_state.attached_images:
-    st.caption(f"แนบรูปภาพแล้ว {len(st.session_state.attached_images)} รูป")
+    st.caption(f"📎 แนบรูปภาพแล้ว {len(st.session_state.attached_images)} รูป")
     preview_cols = st.columns(min(len(st.session_state.attached_images), 4))
     for i, img in enumerate(st.session_state.attached_images):
         with preview_cols[i % len(preview_cols)]:
